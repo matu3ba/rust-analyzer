@@ -57,6 +57,20 @@ pub fn main_loop(
 ) -> Result<()> {
     log::info!("server_config: {:#?}", config);
 
+    // Windows scheduler implements priority boosts: if thread waits for an
+    // event (like a condvar), and event fires, priority of the thread is
+    // temporary bumped .
+    //
+    // https://docs.microsoft.com/en-us/windows/win32/procthread/scheduling-priorities
+    // https://docs.microsoft.com/en-us/windows/win32/procthread/priority-boosts
+    // https://github.com/rust-analyzer/rust-analyzer/issues/2835
+    #[cfg(windows)]
+    unsafe {
+        use winapi::um::processthreadsapi::*;
+        let thread = GetCurrentThread();
+        SetThreadPriority(thread, THREAD_PRIORITY_ABOVE_NORMAL);
+    }
+
     let mut loop_state = LoopState::default();
     let mut world_state = {
         let feature_flags = {
